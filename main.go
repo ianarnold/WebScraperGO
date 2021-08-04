@@ -1,21 +1,29 @@
-package main 
+package main
 
 import (
 	"encoding/json"
-	"strconv"
 	"fmt"
-	"os"
 	"io/ioutil"
 	"log"
+	"os"
+	"strconv"
+
 	"github.com/gocolly/colly"
 )
 
 type Fact struct {
-    ID int `json:"id"` 
+	ID          int    `json:"id"`
 	Description string `json:"description"`
 }
 
 func main() {
+
+	bibleFacts()
+	brazilFacts()
+
+}
+
+func brazilFacts() {
 
 	Facts := make([]Fact, 0)
 
@@ -29,12 +37,10 @@ func main() {
 			log.Println("Não foi possível encontrar o ID")
 		}
 
-
-
 		factDesc := element.Text
 
 		fact := Fact{
-			ID: factID,
+			ID:          factID,
 			Description: factDesc,
 		}
 
@@ -49,11 +55,47 @@ func main() {
 
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "")
-	writeJSON(Facts)
+	writeBrazilJSON(Facts)
 
 }
 
-func writeJSON(data []Fact) {
+func bibleFacts() {
+
+	Facts := make([]Fact, 0)
+
+	collector := colly.NewCollector(
+		colly.AllowedDomains("factretriever.com", "www.factretriever.com"),
+	)
+
+	collector.OnHTML(".factsList li", func(element *colly.HTMLElement) {
+		factID, err := strconv.Atoi(element.Attr("id"))
+		if err != nil {
+			log.Println("Não foi possível encontrar o ID")
+		}
+
+		factDesc := element.Text
+
+		fact := Fact{
+			ID:          factID,
+			Description: factDesc,
+		}
+
+		Facts = append(Facts, fact)
+	})
+
+	collector.OnRequest(func(request *colly.Request) {
+		fmt.Println("Visitando", request.URL.String())
+	})
+
+	collector.Visit("https://www.factretriever.com/bible-facts")
+
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "")
+	writeBibleJSON(Facts)
+
+}
+
+func writeBrazilJSON(data []Fact) {
 
 	file, err := json.MarshalIndent(data, "", " ")
 	if err != nil {
@@ -62,5 +104,17 @@ func writeJSON(data []Fact) {
 	}
 
 	_ = ioutil.WriteFile("brazilfacts.json", file, 0644)
+
+}
+
+func writeBibleJSON(data []Fact) {
+
+	file, err := json.MarshalIndent(data, "", " ")
+	if err != nil {
+		log.Println("Impossível criar o arquivo JSON")
+		return
+	}
+
+	_ = ioutil.WriteFile("biblefacts.json", file, 0644)
 
 }
